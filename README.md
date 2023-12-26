@@ -1,34 +1,47 @@
+---
+
 # Document Scanner
 
+This Python script captures video from the default camera, applies image processing techniques to detect and scan documents, and saves the scanned images.
 
-[![Watch Video](https://github.com/murtazahassan/Document-Scanner/blob/master/Documnet%20Scanner.jpg)](https://youtu.be/ON_JubFRw8M)
+## Requirements
 
-In this video we are going to create a simple document scanner using opencv. We will  learn how to run this in real time and how we can save these images by pressing just a button on the keyboard. This Is perfect project for beginners as it is simple and covers the core principals of opencv. 
+- Python 3.x
+- OpenCV
+- NumPy
 
-Subscribe its FREE !!! 😂😂😂
+## Installation
 
-Product Links:
+Make sure you have Python installed on your system. You can check by running:
 
-Recommend Webcam for Computer Vision:
+```bash
+python --version
+```
 
-https://amzn.to/2MNtVKZ
+If OpenCV is not installed, the script will attempt to install it using pip:
 
-Budget Webcam:
+```bash
+pip install opencv-python
+```
 
-https://amzn.to/2ZP47Ug
+## Usage
 
-Links:
+Run the script using:
 
-OpenCV Python Complete Course:
+```bash
+python DocumentScannerMain.py
+```
 
-https://www.youtube.com/watch?v=CJXIjApHYVs&list=PLMoSUbG1Q_r_sc0x7ndCsqdIkL7dwrmNF
+The application will open a window displaying the video feed from the camera. Follow the on-screen instructions to capture and save scanned images.
 
-How to install Opencv in Python: https://youtu.be/CJXIjApHYVs
+## Features
 
-Joining Images: https://youtu.be/Wv0PSs0dmVI
+- Adjust threshold levels using trackbars.
+- Automatically installs OpenCV if not already installed.
+- Supports switching between camera feed and pre-recorded video.
 
-Color Detection: https://youtu.be/Tj4zEX_pdUg
+## Author
 
-Contours: https://youtu.be/Fchzk1lDt7Q
+Om Prakash Singh
 
-Warp Prespective: https://youtu.be/Tm_7fGolVGE
+---
