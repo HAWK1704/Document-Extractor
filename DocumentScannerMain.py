@@ -75,7 +75,7 @@ def stack_images(img_array, scale, labels):
     return ver
 
 # Set up video capture
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(0)               #0 for default camera and 1 for external camera
 cap.set(10, 160)
 
 # Initialize trackbars
