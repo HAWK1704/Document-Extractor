@@ -1,6 +1,21 @@
 import cv2
 import numpy as np
 import utlis
+import subprocess
+
+try:
+    import cv2
+except ImportError:
+    print("OpenCV is not installed. Installing...")
+    try:
+        subprocess.run(["pip", "install", "opencv-python"])
+        import cv2  # Attempt to import again after installation
+        print("OpenCV installed successfully. Version:", cv2.__version__)
+    except Exception as e:
+        print("Error installing OpenCV:", str(e))
+except Exception as e:
+    print("An error occurred:", str(e))
+
 def initialize_trackbars():
     cv2.namedWindow("Trackbars")
     cv2.createTrackbar("Threshold1", "Trackbars", 50, 255, lambda x: None)
@@ -38,7 +53,8 @@ def reorder(points):
 def draw_rectangle(img, points, thickness=2):
     if points is not None:
         pts = points.reshape((4, 2))
-        cv2.polylines(img, [pts], isClosed=True, color=(0, 255, 0), thickness=thickness)
+        cv2.polylines(img, [pts.astype(int)], isClosed=True, color=(0, 255, 0), thickness=thickness)
+    return img
 
 def stack_images(img_array, scale, labels):
     rows = len(img_array)
@@ -74,9 +90,20 @@ def stack_images(img_array, scale, labels):
         ver = hor
     return ver
 
-# Set up video capture
-cap = cv2.VideoCapture(0)               #0 for default camera and 1 for external camera
-cap.set(10, 160)
+# Choose between camera and image mode
+use_camera_str = input("Enter True for camera and False for pre-saved Image").title()
+use_camera = use_camera_str == "True"
+
+
+if use_camera:
+    # Set up video capture
+    cap = cv2.VideoCapture(0)  # set 1 for an external camera and 0 for an internal camera
+    cap.set(10, 160)
+else:
+    img = cv2.imread("1.jpg")
+    if img is None:
+        print("Error: Unable to load the image.")
+        exit()
 
 # Initialize trackbars
 initialize_trackbars()
@@ -86,8 +113,13 @@ count = 0
 imgBlank = np.zeros((heightImg, widthImg, 3), np.uint8)  # CREATE A BLANK IMAGE FOR TESTING DEBUGING IF REQUIRED
 
 while True:
-    success, img = cap.read()
-    img = cv2.resize(img, (widthImg, heightImg)) # Resize image
+    if use_camera:
+        success, img = cap.read()
+        if not success:
+            print("Error: Unable to capture video.")
+            break  # Exit the loop or handle the error accordingly
+
+    img = cv2.resize(img, (widthImg, heightImg))  # Resize image
 
     # Convert image to grayscale
     imgGray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -109,47 +141,51 @@ while True:
     imgBigContour = img.copy()
     contours, hierarchy = cv2.findContours(imgThreshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     # Find the biggest contour
+    # Find the biggest contour
     biggest, maxArea = utlis.biggestContour(contours)  # FIND THE BIGGEST CONTOUR
     if biggest is not None and biggest.size != 0:
         biggest = utlis.reorder(biggest)  # reorder only if it's not None
-        cv2.drawContours(imgBigContour, [biggest], -1, (0, 255, 0), 20)  # DRAW THE BIGGEST CONTOUR
-        imgBigContour = utlis.drawRectangle(imgBigContour, biggest, 2)
-        pts1 = np.float32(biggest)  # PREPARE POINTS FOR WARP
-        pts2 = np.float32([[0, 0], [widthImg, 0], [0, heightImg], [widthImg, heightImg]])  # PREPARE POINTS FOR WARP
-        matrix = cv2.getPerspectiveTransform(pts1, pts2)
-        imgWarpColored = cv2.warpPerspective(img, matrix, (widthImg, heightImg))
 
-        # Crop and resize warped image
-        imgWarpColored = imgWarpColored[20:imgWarpColored.shape[0] - 20, 20:imgWarpColored.shape[1] - 20]
-        imgWarpColored = cv2.resize(imgWarpColored, (widthImg, heightImg))
+        # Ensure 'biggest' is not None before attempting to draw contours
+        if biggest is not None:
+            cv2.drawContours(imgBigContour, [biggest], -1, (0, 255, 0), 20)  # DRAW THE BIGGEST CONTOUR
+            imgBigContour = utlis.drawRectangle(imgBigContour, biggest, 2)
+            pts1 = np.float32(biggest)  # PREPARE POINTS FOR WARP
+            pts2 = np.float32([[0, 0], [widthImg, 0], [0, heightImg], [widthImg, heightImg]])  # PREPARE POINTS FOR WARP
+            matrix = cv2.getPerspectiveTransform(pts1, pts2)
+            imgWarpColored = cv2.warpPerspective(img, matrix, (widthImg, heightImg))
 
-        # Apply adaptive threshold
-        imgWarpGray = cv2.cvtColor(imgWarpColored, cv2.COLOR_BGR2GRAY)
-        imgAdaptiveThre = cv2.adaptiveThreshold(imgWarpGray, 255, 1, 1, 7, 2)
-        imgAdaptiveThre = cv2.bitwise_not(imgAdaptiveThre)
-        imgAdaptiveThre = cv2.medianBlur(imgAdaptiveThre, 3)
+            # Crop and resize warped image
+            imgWarpColored = imgWarpColored[20:imgWarpColored.shape[0] - 20, 20:imgWarpColored.shape[1] - 20]
+            imgWarpColored = cv2.resize(imgWarpColored, (widthImg, heightImg))
 
-        # Display results
-        imageArray = [[img, imgGray, imgThreshold, imgContours],
-                      [imgBigContour, imgWarpColored, imgWarpGray, imgAdaptiveThre]]
-        lables = [["Original", "Gray", "Threshold", "Contours"],
-                  ["Biggest Contour", "Warp Prespective", "Warp Gray", "Adaptive Threshold"]]
+            # Apply adaptive threshold
+            imgWarpGray = cv2.cvtColor(imgWarpColored, cv2.COLOR_BGR2GRAY)
+            imgAdaptiveThre = cv2.adaptiveThreshold(imgWarpGray, 255, 1, 1, 7, 2)
+            imgAdaptiveThre = cv2.bitwise_not(imgAdaptiveThre)
+            imgAdaptiveThre = cv2.medianBlur(imgAdaptiveThre, 3)
 
-        stackedImage = stack_images(imageArray, 0.75, lables)
-        cv2.imshow("Result", stackedImage)
+            # Display results
+            imageArray = [[img, imgGray, imgThreshold, imgContours],
+                          [imgBigContour, imgWarpColored, imgWarpGray, imgAdaptiveThre]]
+            lables = [["Original", "Gray", "Threshold", "Contours"],
+                      ["Biggest Contour", "Warp Prespective", "Warp Gray", "Adaptive Threshold"]]
 
-        # Save image when 's' key is pressed
-        if cv2.waitKey(1) & 0xFF == ord('s'):
-            cv2.imwrite("myImage" + str(count) + ".jpg", imgWarpColored)
-            cv2.rectangle(stackedImage, ((int(stackedImage.shape[1] / 2) - 230), int(stackedImage.shape[0] / 2) + 50),
-                          (1100, 350), (0, 255, 0), cv2.FILLED)
-            cv2.putText(stackedImage, "Scan Saved",
-                        (int(stackedImage.shape[1] / 2) - 200, int(stackedImage.shape[0] / 2)),
-                        cv2.FONT_HERSHEY_DUPLEX, 3, (0, 0, 255), 5, cv2.LINE_AA)
-            cv2.imshow('Result', stackedImage)
-            cv2.waitKey(300)
-            count += 1
+            stackedImage = stack_images(imageArray, 0.75, lables)
+            cv2.imshow("Result", stackedImage)
 
+            # Save image when 's' key is pressed
+            if cv2.waitKey(1) & 0xFF == ord('s'):
+                cv2.imwrite("myImage" + str(count) + ".jpg", imgWarpColored)
+                cv2.rectangle(stackedImage,
+                              ((int(stackedImage.shape[1] / 2) - 230), int(stackedImage.shape[0] / 2) + 50),
+                              (1100, 350), (0, 255, 0), cv2.FILLED)
+                cv2.putText(stackedImage, "Scan Saved",
+                            (int(stackedImage.shape[1] / 2) - 200, int(stackedImage.shape[0] / 2)),
+                            cv2.FONT_HERSHEY_DUPLEX, 3, (0, 0, 255), 5, cv2.LINE_AA)
+                cv2.imshow('Result', stackedImage)
+                cv2.waitKey(300)
+                count += 1
     else:
         # If no contour is found, display blank image
         imageArray = [[img, imgGray, imgThreshold, imgContours],
@@ -165,5 +201,6 @@ while True:
         break
 
 # Release the camera and close all windows
-cap.release()
+if use_camera:
+    cap.release()
 cv2.destroyAllWindows()
